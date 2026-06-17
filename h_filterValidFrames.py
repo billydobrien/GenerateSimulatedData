@@ -26,6 +26,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "fitsOutputs")
 IMG_RAW    = os.path.join(OUTPUT_DIR, "imaging_frames_raw.fits")
 WFS_RAW    = os.path.join(OUTPUT_DIR, "wfs_frames_raw.fits")
+OPD_FILE   = os.path.join(OUTPUT_DIR, "phase_screens_opd_nm.fits")   # ground-truth wavefronts
 GT_FLUX    = os.path.join(OUTPUT_DIR, "ground_truth_flux.npz")
 
 
@@ -50,9 +51,16 @@ def main():
     print(f"[sim-h] BOTH valid: {valid.sum()}/{nf} ({100*valid.mean():.1f}%)  "
           f"-> kept frame indices align imaging<->WFS<->OPD screens")
 
-    # ── Save aligned valid cubes ─────────────────────────────────────────────
+    # ── Ground-truth OPD screens that produced these frames ─────────────────
+    opd = np.asarray(fits.getdata(OPD_FILE), np.float32)
+    if opd.shape[0] < nf:
+        raise SystemExit(f"[sim-h] OPD screens ({opd.shape[0]}) < frames ({nf})")
+    opd = opd[:nf]
+
+    # ── Save aligned valid cubes (data + ground-truth OPD, all frame-aligned) ─
     for cube, name in ((img[valid], "imaging_frames_valid.fits"),
-                       (wfs[valid], "wfs_frames_valid.fits")):
+                       (wfs[valid], "wfs_frames_valid.fits"),
+                       (opd[valid], "phase_screens_opd_valid.fits")):
         hdr = fits.Header()
         hdr["NFRAMES"] = (int(valid.sum()), "Valid (unsaturated) frames")
         hdr["NTOTAL"]  = (nf, "Frames before filtering")
